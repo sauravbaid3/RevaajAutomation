@@ -22,7 +22,9 @@ if (port) {
 
 const token = process.env.TELEGRAM_BOT_TOKEN;
 if (!token) {
-  console.error("Missing TELEGRAM_BOT_TOKEN in .env");
+  console.error(
+    "Missing TELEGRAM_BOT_TOKEN. Set it in your environment (e.g. Render → Environment) or in a local .env file."
+  );
   process.exit(1);
 }
 
