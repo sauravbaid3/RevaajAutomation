@@ -17,9 +17,9 @@ Set these in the host’s dashboard (never commit `.env`):
 
 Optional Supabase (see bottom): `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`.
 
-## Monorepo
+## Monorepo / repo layout
 
-If the Git root is **`mercor-new`** (parent of this folder), set **Root Directory** to `shopify-telegram-bot` in Railway or Render.
+If the Git root is **`shopify-telegram-workspace`** (this layout), set **Root Directory** to `shopify-telegram-bot` in Railway or Render.
 
 ---
 
