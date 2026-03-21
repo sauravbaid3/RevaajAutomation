@@ -1,0 +1,12 @@
+# https://render.com/docs/blueprint-spec
+# Free tier is "Web Service" only (not Background Workers). Health checks hit /health.
+# Dashboard → New → Blueprint, or create Web Service: Build npm install, Start npm start
+services:
+  - type: web
+    name: shopify-telegram-bot
+    runtime: node
+    plan: free
+    region: oregon
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health

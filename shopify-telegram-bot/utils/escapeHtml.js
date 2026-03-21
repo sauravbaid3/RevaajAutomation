@@ -1,0 +1,9 @@
+/** Escape text for Telegram HTML parse mode */
+function escapeHtml(s) {
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+module.exports = { escapeHtml };

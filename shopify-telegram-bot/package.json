@@ -1,0 +1,20 @@
+{
+  "name": "shopify-telegram-bot",
+  "version": "1.0.0",
+  "description": "Telegram bot to add Shopify products via conversation + Gemini AI",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node index.js",
+    "test:apis": "node scripts/test-apis.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.15.0",
+    "axios": "^1.6.0",
+    "dotenv": "^16.3.1",
+    "telegraf": "^4.16.3"
+  }
+}
