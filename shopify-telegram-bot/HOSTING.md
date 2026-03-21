@@ -39,12 +39,13 @@ Railway usually sets **`PORT`** and expects something to listen; `index.js` star
 
 ## Render (free Web Service)
 
-Render’s **free** tier applies to **Web Services**, not Background Workers. This repo includes **`render.yaml`** for a **free Web Service** with **`healthCheckPath: /health`** so Render can probe the app.
+Render’s **free** tier applies to **Web Services**, not Background Workers. The workspace root has **`render.yaml`** (Blueprint) with **`rootDir: shopify-telegram-bot`** and **`healthCheckPath: /health`**.
 
-1. Push to Git and connect the repo on [Render](https://render.com).
-2. **New** → **Blueprint** (or **Web Service** manually).
-3. **Build:** `npm install` — **Start:** `npm start`
-4. Add the same env vars.
+1. Push the **workspace** repo to GitHub and open [Render](https://render.com).
+2. **New** → **Blueprint** — pick the repo; Render picks up root `render.yaml`.
+3. Add env vars (see table above). Step-by-step: **`../RENDER.md`** from this folder (repo root).
+
+If you create a **Web Service** manually instead, set **Root Directory** to `shopify-telegram-bot`.
 
 **Limits:** Free web apps can **spin down** when idle; Render’s health checks help but behavior can still interrupt a 24/7 bot. For something stricter, use a paid instance or another host.
 

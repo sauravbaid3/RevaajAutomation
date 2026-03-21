@@ -1,0 +1,11 @@
+# Blueprint at repo root: https://render.com/docs/blueprint-spec
+services:
+  - type: web
+    name: shopify-telegram-bot
+    runtime: node
+    plan: free
+    region: oregon
+    rootDir: shopify-telegram-bot
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
