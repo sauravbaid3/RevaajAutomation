@@ -26,8 +26,13 @@ function formatShopHtml(shop, host) {
 function variantPriceLine(variants) {
   if (!variants || !variants.length) return "—";
   const v = variants[0];
-  const p = v.price != null ? v.price : "—";
-  return `${p}`;
+  const price = v.price != null ? v.price : "—";
+  const mrp = v.compare_at_price;
+
+  if (mrp && parseFloat(mrp) > parseFloat(price)) {
+    return `₹${price} <s>₹${mrp}</s>`; // <s> is HTML for strikethrough
+  }
+  return `₹${price}`;
 }
 
 function formatProductListHtml(products, host, title) {
@@ -37,10 +42,10 @@ function formatProductListHtml(products, host, title) {
   const lines = products.map((p) => {
     const url = storefrontProductUrl(host, p.handle);
     const admin = adminProductUrl(host, p.id);
-    const price = variantPriceLine(p.variants);
+    const priceDisplay = variantPriceLine(p.variants); // Uses our new logic
     return (
       `• <a href="${escapeHtml(url)}">${escapeHtml(p.title)}</a>\n` +
-      `  <code>${p.id}</code> · ${escapeHtml(p.status)} · ${escapeHtml(String(price))}\n` +
+      `  <code>${p.id}</code> · ${escapeHtml(p.status)} · ${priceDisplay}\n` +
       `  <a href="${escapeHtml(admin)}">Admin</a>`
     );
   });
@@ -58,15 +63,15 @@ function stripHtmlBrief(html, max = 350) {
 function formatProductDetailHtml(product, host) {
   const url = storefrontProductUrl(host, product.handle);
   const admin = adminProductUrl(host, product.id);
-  const price = variantPriceLine(product.variants);
+  const priceDisplay = variantPriceLine(product.variants);
   const tags = product.tags ? escapeHtml(String(product.tags).slice(0, 200)) : "—";
   const desc = escapeHtml(stripHtmlBrief(product.body_html));
+  
   return (
     `<b>${escapeHtml(product.title)}</b>\n` +
     `<b>ID:</b> <code>${product.id}</code>\n` +
     `<b>Status:</b> ${escapeHtml(product.status)}\n` +
-    `<b>Handle:</b> ${escapeHtml(product.handle)}\n` +
-    `<b>Price (1st variant):</b> ${escapeHtml(String(price))}\n` +
+    `<b>Price:</b> ${priceDisplay}\n` + // Updated for MRP support
     `<b>Vendor:</b> ${escapeHtml(product.vendor || "—")}\n` +
     `<b>Type:</b> ${escapeHtml(product.product_type || "—")}\n` +
     `<b>Tags:</b> ${tags}\n\n` +

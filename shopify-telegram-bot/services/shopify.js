@@ -92,7 +92,8 @@ function invalidateCachedToken() {
 /**
  * @param {object} data
  * @param {string} data.name
- * @param {string|number} data.price
+ * @param {number} data.price - The Selling Price
+ * @param {number} data.mrp - The Maximum Retail Price (Strike-through)
  * @param {string[]} data.photos
  * @param {object} data.ai
  */
@@ -122,10 +123,9 @@ async function createProduct(data) {
     images.push({ attachment: b64, position: i + 1 });
   }
 
-  const priceStr =
-    typeof data.price === "number"
-      ? data.price.toFixed(2)
-      : String(data.price).trim();
+  // Format both prices as strings with 2 decimal places for Shopify
+  const priceStr = typeof data.price === "number" ? data.price.toFixed(2) : String(data.price).trim();
+  const mrpStr = typeof data.mrp === "number" ? data.mrp.toFixed(2) : String(data.mrp).trim();
 
   const payload = {
     product: {
@@ -137,7 +137,8 @@ async function createProduct(data) {
       tags: data.ai.tags.join(", "),
       variants: [
         {
-          price: priceStr,
+          price: priceStr,                // Customer pays this
+          compare_at_price: mrpStr,       // Crossed-out price (MRP)
           weight: data.ai.weight_grams,
           weight_unit: "g",
           inventory_management: "shopify",
@@ -189,10 +190,7 @@ async function createProduct(data) {
   }
 
   if (response.status < 200 || response.status >= 300) {
-    const msg =
-      response.data?.errors ||
-      response.statusText ||
-      "Shopify API error";
+    const msg = response.data?.errors || response.statusText || "Shopify API error";
     const err = new Error(typeof msg === "string" ? msg : JSON.stringify(msg));
     err.status = response.status;
     err.data = response.data;

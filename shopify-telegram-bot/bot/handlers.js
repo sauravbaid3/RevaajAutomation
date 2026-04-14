@@ -27,8 +27,8 @@ function largestPhotoFileId(photos) {
 }
 
 async function sendPreview(ctx, session) {
-  const { name, price, ai } = session.data;
-  const text = formatPreview(name, price, ai);
+  const { name, price, mrp, ai } = session.data;
+  const text = formatPreview(name, price, mrp, ai);
   await ctx.reply(text, {
     parse_mode: "Markdown",
     ...confirmKeyboard,
@@ -377,7 +377,7 @@ async function registerHandlers(bot) {
     await ctx.reply("Generating product details with AI...");
 
     try {
-      const ai = await generateProductFields(session.data.name, session.data.price);
+      const ai = await generateProductFields(session.data.name, session.data.price,session.data.mrp);
       session.data.ai = ai;
       log(userId, "AI generation ok");
       await sendPreview(ctx, session);
@@ -398,25 +398,40 @@ async function registerHandlers(bot) {
     if (session.step === "ask_name") {
       log(userId, `name: ${text.slice(0, 80)}`);
       session.data.name = text;
+      session.step = "ask_mrp"; // Move to MRP first
+      await ctx.reply("What is the MRP? (The original strike-through price ₹)");
+      return;
+    }
+    if (session.step === "ask_mrp") {
+      const num = parseFloat(text.replace(/,/g, ""));
+      if (Number.isNaN(num) || num < 0) {
+        await ctx.reply("Please send a valid number for the MRP.");
+        return;
+      }
+      session.data.mrp = num; // This will be 'compare_at_price'
       session.step = "ask_price";
-      await ctx.reply("What is the price? (just the number in ₹)");
+      await ctx.reply("What is the Selling Price? (The actual price the customer pays ₹)");
       return;
     }
 
     if (session.step === "ask_price") {
       const num = parseFloat(text.replace(/,/g, ""));
       if (Number.isNaN(num) || num < 0) {
-        await ctx.reply("Please send a valid number for the price (e.g. 499 or 1299.50)");
+        await ctx.reply("Please send a valid number for the selling price.");
         return;
       }
-      log(userId, `price: ${num}`);
-      session.data.price = num;
+      
+      // Validation: Selling price shouldn't really be higher than MRP
+      if (num > session.data.mrp) {
+        await ctx.reply("⚠️ Note: Selling price is higher than MRP. Is this intended? If not, send the price again.");
+      }
+    
+      session.data.price = num; // This will be 'price'
       session.step = "ask_photos";
       session.data.photos = [];
       await ctx.reply("Send me 3 photos one by one. (Photo 1 of 3)");
       return;
     }
-
     if (session.step === "ask_photos") {
       log(userId, "text in ask_photos — reject");
       await ctx.reply("Please send a photo right now, not text");
