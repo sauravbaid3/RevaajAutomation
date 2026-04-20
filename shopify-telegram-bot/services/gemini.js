@@ -42,8 +42,8 @@ async function generateProductFields(imageUrls, price, mrp) {
         "tags": ["array of 8 tags"],
         "seo_title": "SEO title",
         "seo_description": "SEO desc",
-        "product_type": "Clothing/Jewelry/etc",
-        "weight_grams": 500
+        "product_type": "Jewelry",
+        "weight_grams": choose between 130 to 200
       }`;
 
     const result = await model.generateContent([prompt, ...imageParts]);

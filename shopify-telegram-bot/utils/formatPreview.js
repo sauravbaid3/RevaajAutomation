@@ -15,12 +15,12 @@ function escapeMarkdown(text) {
 function formatPreview(name, price, mrp, ai) {
   const tags = Array.isArray(ai.tags) ? ai.tags.map(escapeMarkdown).join(", ") : "";
   const desc = escapeMarkdown(ai.description);
-  
+
   // Calculate discount percentage
   const numPrice = parseFloat(price);
   const numMrp = parseFloat(mrp);
   let discountBadge = "";
-  
+
   if (numMrp > numPrice) {
     const pct = Math.round(((numMrp - numPrice) / numMrp) * 100);
     discountBadge = ` (${pct}% OFF)`;
@@ -32,7 +32,7 @@ function formatPreview(name, price, mrp, ai) {
     `*Selling Price:* ₹${escapeMarkdown(String(price))}${discountBadge}\n` +
     `*MRP:* ~₹${escapeMarkdown(String(mrp))}~\n` + // ~ denotes strikethrough in Markdown
     `*Type:* ${escapeMarkdown(ai.product_type)}\n` +
-    `*Vendor:* ${escapeMarkdown(ai.vendor)}\n\n` +
+    `*Vendor:* Revaaj\n\n` +
     `*Description:*\n${desc}\n\n` +
     `🏷️ *Tags:* ${tags}\n\n` +
     `🔍 *SEO Title:* ${escapeMarkdown(ai.seo_title)}\n` +
