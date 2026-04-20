@@ -1,55 +1,62 @@
 const { GoogleGenerativeAI } = require("@google/generative-ai");
+const axios = require("axios");
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-const modelName =
-  process.env.GEMINI_MODEL?.trim() || "gemini-3.1-flash-lite-preview";
-
+// Enforce JSON mode natively so the model never outputs markdown or conversational text
 const model = genAI.getGenerativeModel({
-  model: modelName,
+  model: "gemini-2.5-flash",
   generationConfig: {
     responseMimeType: "application/json",
-  },
+  }
 });
 
-/**
- * @param {string} name
- * @param {string|number} price
- */
-async function generateProductFields(name, price) {
-  const prompt = `You are a Shopify product listing expert for the Indian e-commerce market.
-
-Generate complete Shopify product listing fields for the following product:
-Product name: ${name}
-Price: ₹${price}
-
-Return a JSON object with exactly these keys:
-{
-  description: (string, 150 words, persuasive, written for Indian buyers, highlight quality and value),
-  tags: (array of 8-10 relevant strings),
-  seo_title: (string, under 70 characters, includes product name),
-  seo_description: (string, under 160 characters, compelling),
-  product_type: (string, e.g. Furniture, Clothing, Electronics),
-  vendor: (string, suggest a suitable generic vendor/brand name),
-  weight_grams: (number, estimated shipping weight in grams)
-}
-
-Respond with valid JSON only. No explanation, no markdown, no backticks.`;
-
-  async function runOnce() {
-    const result = await model.generateContent(prompt);
-    const text = result.response.text();
-    return JSON.parse(text);
-  }
-
+async function generateProductFields(imageUrls, price, mrp) {
   try {
-    return await runOnce();
-  } catch (firstErr) {
-    try {
-      return await runOnce();
-    } catch (secondErr) {
-      throw secondErr;
-    }
+    // 1. Download images and convert to Base64 for Gemini
+    const imageParts = await Promise.all(
+      imageUrls.map(async (url) => {
+        const response = await axios.get(url, {
+          responseType: "arraybuffer",
+          timeout: 15000 // Prevents the bot from hanging if Telegram servers are slow
+        });
+
+        return {
+          inlineData: {
+            data: Buffer.from(response.data).toString("base64"),
+            mimeType: "image/jpeg",
+          },
+        };
+      })
+    );
+
+    const prompt = `You are an expert product cataloger for "Revaaj", a premium Indian brand.
+      Based on these photos, generate a high-converting Shopify listing.
+      Selling Price: ₹${price}
+      MRP: ₹${mrp}
+
+      Return a JSON object with exactly these keys:
+      {
+        "name": "Catchy Product Title",
+        "description": "HTML description with <b> and <ul> tags",
+        "tags": ["array of 8 tags"],
+        "seo_title": "SEO title",
+        "seo_description": "SEO desc",
+        "product_type": "Clothing/Jewelry/etc",
+        "weight_grams": 500
+      }`;
+
+    const result = await model.generateContent([prompt, ...imageParts]);
+    let text = result.response.text();
+
+    // Fallback cleanup (usually unnecessary with responseMimeType, but good for safety)
+    text = text.replace(/```json|```/g, "").trim();
+
+    return JSON.parse(text);
+
+  } catch (error) {
+    console.error("Gemini Generation Error:", error.message);
+    throw new Error("Failed to generate AI product details.");
   }
 }
 

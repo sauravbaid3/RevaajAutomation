@@ -62,7 +62,7 @@ async function sendShopMenu(ctx) {
 }
 
 function startAddFlow(session) {
-  session.step = "ask_name";
+  session.step = "ask_mrp";
   session.data = {};
 }
 
@@ -72,19 +72,19 @@ async function registerHandlers(bot) {
     log(userId, "command /start");
     await ctx.reply(
       "Welcome! Manage your Shopify store from here.\n\n" +
-        "<b>Add products (AI)</b>\n" +
-        "/add — name, price ₹, 3 photos → AI preview → publish\n\n" +
-        "<b>Shopify</b>\n" +
-        "/menu — buttons for common actions\n" +
-        "/shop — store name, domain, currency, plan\n" +
-        "/products [n] — last n products (default 8, max 15)\n" +
-        "/count — total product count\n" +
-        "/find &lt;text&gt; — search titles (first 250 products)\n" +
-        "/product &lt;id&gt; — details (also /p)\n" +
-        "/draft &lt;id&gt; — draft (not published)\n" +
-        "/active &lt;id&gt; — active on storefront\n" +
-        "/archive &lt;id&gt; — archive product\n\n" +
-        "/status — bot wizard step · /cancel — abort add flow",
+      "<b>Add products (AI)</b>\n" +
+      "/add — name, price ₹, 3 photos → AI preview → publish\n\n" +
+      "<b>Shopify</b>\n" +
+      "/menu — buttons for common actions\n" +
+      "/shop — store name, domain, currency, plan\n" +
+      "/products [n] — last n products (default 8, max 15)\n" +
+      "/count — total product count\n" +
+      "/find &lt;text&gt; — search titles (first 250 products)\n" +
+      "/product &lt;id&gt; — details (also /p)\n" +
+      "/draft &lt;id&gt; — draft (not published)\n" +
+      "/active &lt;id&gt; — active on storefront\n" +
+      "/archive &lt;id&gt; — archive product\n\n" +
+      "/status — bot wizard step · /cancel — abort add flow",
       { parse_mode: "HTML" }
     );
   });
@@ -206,7 +206,7 @@ async function registerHandlers(bot) {
       const { product, host } = await setProductStatus(id, apiStatus);
       await ctx.reply(
         `✅ Product <b>${product.title}</b> is now <b>${apiStatus}</b>.\n` +
-          `<a href="https://${host}/admin/products/${product.id}">Open in Admin</a>`,
+        `<a href="https://${host}/admin/products/${product.id}">Open in Admin</a>`,
         { parse_mode: "HTML", link_preview_options: { is_disabled: true } }
       );
     } catch (e) {
@@ -222,7 +222,7 @@ async function registerHandlers(bot) {
     log(userId, "command /add");
     const session = getSession(userId);
     startAddFlow(session);
-    await ctx.reply("What is the product name?");
+    await ctx.reply("What is the MRP? (The original strike-through price ₹)");
   });
 
   bot.command("cancel", async (ctx) => {
@@ -289,7 +289,7 @@ async function registerHandlers(bot) {
     if (data === "shop_menu_add") {
       log(userId, "callback shop_menu_add");
       startAddFlow(session);
-      await ctx.reply("What is the product name?");
+      await ctx.reply("What is the MRP? (The original strike-through price ₹)");
       return;
     }
 
@@ -377,8 +377,8 @@ async function registerHandlers(bot) {
     await ctx.reply("Generating product details with AI...");
 
     try {
-      const ai = await generateProductFields(session.data.name, session.data.price,session.data.mrp);
-      session.data.ai = ai;
+      const ai = await generateProductFields(session.data.photos, session.data.price, session.data.mrp); session.data.ai = ai;
+      session.data.name = ai.name;
       log(userId, "AI generation ok");
       await sendPreview(ctx, session);
     } catch (e) {
@@ -395,13 +395,7 @@ async function registerHandlers(bot) {
 
     const session = getSession(userId);
 
-    if (session.step === "ask_name") {
-      log(userId, `name: ${text.slice(0, 80)}`);
-      session.data.name = text;
-      session.step = "ask_mrp"; // Move to MRP first
-      await ctx.reply("What is the MRP? (The original strike-through price ₹)");
-      return;
-    }
+
     if (session.step === "ask_mrp") {
       const num = parseFloat(text.replace(/,/g, ""));
       if (Number.isNaN(num) || num < 0) {
@@ -420,12 +414,12 @@ async function registerHandlers(bot) {
         await ctx.reply("Please send a valid number for the selling price.");
         return;
       }
-      
+
       // Validation: Selling price shouldn't really be higher than MRP
       if (num > session.data.mrp) {
         await ctx.reply("⚠️ Note: Selling price is higher than MRP. Is this intended? If not, send the price again.");
       }
-    
+
       session.data.price = num; // This will be 'price'
       session.step = "ask_photos";
       session.data.photos = [];

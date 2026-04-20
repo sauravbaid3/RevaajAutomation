@@ -131,7 +131,7 @@ async function createProduct(data) {
     product: {
       title: data.name,
       body_html: data.ai.description,
-      vendor: data.ai.vendor,
+      vendor: "Revaaj",
       product_type: data.ai.product_type,
       status: "active",
       tags: data.ai.tags.join(", "),
