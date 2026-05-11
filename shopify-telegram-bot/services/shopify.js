@@ -22,10 +22,6 @@ function shopHost() {
   return sub ? `${sub}.myshopify.com` : null;
 }
 
-/**
- * Legacy: set SHOPIFY_ACCESS_TOKEN (e.g. shpat_… from a custom app).
- * Dev Dashboard: set SHOPIFY_CLIENT_ID + SHOPIFY_CLIENT_SECRET; token is fetched via OAuth client_credentials (24h TTL, cached).
- */
 async function getAccessToken() {
   const staticToken = process.env.SHOPIFY_ACCESS_TOKEN?.trim();
   if (staticToken) return staticToken;
@@ -89,18 +85,12 @@ function invalidateCachedToken() {
   cachedTokenExpiresAt = 0;
 }
 
-/**
- * @param {object} data
- * @param {string} data.name
- * @param {number} data.price - The Selling Price
- * @param {number} data.mrp - The Maximum Retail Price (Strike-through)
- * @param {string[]} data.photos
- * @param {object} data.ai
- */
 async function createProduct(data) {
   const images = [];
+
   for (let i = 0; i < data.photos.length; i++) {
     const url = data.photos[i];
+
     let res;
     try {
       res = await axios.get(url, {
@@ -114,22 +104,34 @@ async function createProduct(data) {
       err.photoIndex = i + 1;
       throw err;
     }
+
     if (res.status < 200 || res.status >= 300) {
       const err = new Error(`download_failed_${i + 1}`);
       err.photoIndex = i + 1;
       throw err;
     }
+
     const b64 = Buffer.from(res.data).toString("base64");
-    images.push({ attachment: b64, position: i + 1 });
+
+    images.push({
+      attachment: b64,
+      position: i + 1,
+      alt: `${data.ai.image_alt_text || data.name} ${i + 1}`,
+    });
   }
 
-  // Format both prices as strings with 2 decimal places for Shopify
-  const priceStr = typeof data.price === "number" ? data.price.toFixed(2) : String(data.price).trim();
-  const mrpStr = typeof data.mrp === "number" ? data.mrp.toFixed(2) : String(data.mrp).trim();
+  const priceStr = typeof data.price === "number"
+    ? data.price.toFixed(2)
+    : String(data.price).trim();
+
+  const mrpStr = typeof data.mrp === "number"
+    ? data.mrp.toFixed(2)
+    : String(data.mrp).trim();
 
   const payload = {
     product: {
       title: data.name,
+      handle: data.ai.handle,
       body_html: data.ai.description,
       vendor: "Revaaj",
       product_type: data.ai.product_type,
@@ -137,8 +139,8 @@ async function createProduct(data) {
       tags: data.ai.tags.join(", "),
       variants: [
         {
-          price: priceStr,                // Customer pays this
-          compare_at_price: mrpStr,       // Crossed-out price (MRP)
+          price: priceStr,
+          compare_at_price: mrpStr,
           weight: data.ai.weight_grams,
           weight_unit: "g",
           inventory_management: "shopify",
@@ -164,6 +166,7 @@ async function createProduct(data) {
   };
 
   const host = shopHost();
+
   if (!host) {
     throw new Error("SHOPIFY_STORE is not set or invalid");
   }
@@ -208,150 +211,9 @@ async function createProduct(data) {
   };
 }
 
-async function adminRequest(method, path, { query, data } = {}) {
-  const host = shopHost();
-  if (!host) throw new Error("SHOPIFY_STORE is not set or invalid");
-
-  const buildConfig = (token) => {
-    const headers = { "X-Shopify-Access-Token": token };
-    if (method !== "GET" && method !== "DELETE") {
-      headers["Content-Type"] = "application/json";
-    }
-    return {
-      method,
-      url: `https://${host}/admin/api/${API_VERSION}${path}`,
-      headers,
-      params: query,
-      data: data !== undefined ? data : undefined,
-      timeout: 60000,
-      validateStatus: () => true,
-    };
-  };
-
-  let token = await getAccessToken();
-  let res = await axios(buildConfig(token));
-
-  if (res.status === 401 && process.env.SHOPIFY_CLIENT_ID) {
-    invalidateCachedToken();
-    token = await getAccessToken();
-    res = await axios(buildConfig(token));
-  }
-
-  return { res, host };
-}
-
-async function getShop() {
-  const { res, host } = await adminRequest("GET", "/shop.json");
-  if (res.status !== 200) {
-    const err = new Error(shopifyErrorMessage(res));
-    err.status = res.status;
-    throw err;
-  }
-  return { shop: res.data.shop, host };
-}
-
-async function listRecentProducts(limit = 8) {
-  const cap = Math.min(50, Math.max(1, limit));
-  const { res, host } = await adminRequest("GET", "/products.json", {
-    query: {
-      limit: cap,
-      status: "any",
-      fields: "id,title,handle,status,variants,updated_at",
-    },
-  });
-  if (res.status !== 200) {
-    const err = new Error(shopifyErrorMessage(res));
-    err.status = res.status;
-    throw err;
-  }
-  return { products: res.data.products || [], host };
-}
-
-/** Substring match on titles (first page of products, max 250 — fine for small/medium catalogs). */
-async function searchProductsByTitle(titleQuery, limit = 10) {
-  const q = String(titleQuery).trim().toLowerCase();
-  if (!q) return { products: [], host: shopHost() };
-  const { res, host } = await adminRequest("GET", "/products.json", {
-    query: {
-      limit: 250,
-      status: "any",
-      fields: "id,title,handle,status,variants",
-    },
-  });
-  if (res.status !== 200) {
-    const err = new Error(shopifyErrorMessage(res));
-    err.status = res.status;
-    throw err;
-  }
-  const matched = (res.data.products || [])
-    .filter((p) => p.title && p.title.toLowerCase().includes(q))
-    .slice(0, Math.min(15, limit));
-  return { products: matched, host };
-}
-
-async function getProductsCount() {
-  const { res } = await adminRequest("GET", "/products/count.json", {
-    query: { published_status: "any" },
-  });
-  if (res.status !== 200) {
-    const err = new Error(shopifyErrorMessage(res));
-    err.status = res.status;
-    throw err;
-  }
-  return res.data.count;
-}
-
-async function getProductById(productId) {
-  const { res, host } = await adminRequest(
-    "GET",
-    `/products/${productId}.json`,
-    { query: { fields: "id,title,handle,status,body_html,vendor,product_type,tags,variants,images" } }
-  );
-  if (res.status === 404) return null;
-  if (res.status !== 200) {
-    const err = new Error(shopifyErrorMessage(res));
-    err.status = res.status;
-    throw err;
-  }
-  return { product: res.data.product, host };
-}
-
-async function setProductStatus(productId, status) {
-  const allowed = ["active", "draft", "archived"];
-  if (!allowed.includes(status)) {
-    throw new Error(`Invalid status: ${status}`);
-  }
-  const { res, host } = await adminRequest("PUT", `/products/${productId}.json`, {
-    data: { product: { id: Number(productId), status } },
-  });
-  if (res.status !== 200) {
-    const err = new Error(shopifyErrorMessage(res));
-    err.status = res.status;
-    err.data = res.data;
-    throw err;
-  }
-  return { product: res.data.product, host };
-}
-
-function shopifyErrorMessage(res) {
-  const d = res.data;
-  if (d?.errors) {
-    return typeof d.errors === "string"
-      ? d.errors
-      : JSON.stringify(d.errors);
-  }
-  return res.statusText || `HTTP ${res.status}`;
-}
-
 module.exports = {
   createProduct,
   getAccessToken,
   invalidateCachedToken,
-  getShop,
-  listRecentProducts,
-  searchProductsByTitle,
-  getProductsCount,
-  getProductById,
-  setProductStatus,
   shopHost,
 };
