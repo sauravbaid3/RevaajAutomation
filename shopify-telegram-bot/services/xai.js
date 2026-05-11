@@ -21,9 +21,8 @@ function inferMimeTypeFromUrl(url) {
     if (pathname.endsWith(".png")) return "image/png";
     if (pathname.endsWith(".webp")) return "image/webp";
     if (pathname.endsWith(".jpg") || pathname.endsWith(".jpeg")) return "image/jpeg";
-  } catch (_) {
-    // Fall through to jpeg.
-  }
+  } catch (_) {}
+
   return "image/jpeg";
 }
 
@@ -53,22 +52,31 @@ async function generateProductFields(imageUrls, price, mrp) {
       throw new Error("Missing XAI_API_KEY");
     }
 
-    const prompt = `You are an expert product cataloger for "Revaaj", a premium Indian brand.
-      Based on this product photo, generate a high-converting Shopify listing.
-      Selling Price: ₹${price}
-      MRP: ₹${mrp}
+    const prompt = `You are an expert product cataloger for Revaaj, a premium Indian fashion and jewelry brand.
 
-      Return a JSON object with exactly these keys:
-      {
-        "name": "Catchy Product Title",
-        "description": "HTML description with <b> and <ul> tags",
-        "tags": ["array of 8 tags"],
-        "seo_title": "SEO title",
-        "seo_description": "SEO desc",
-        "product_type": "Jewelry",
-        "weight_grams": choose between 130 to 200
-      }
-      Return only valid JSON with no markdown.`;
+Based on this product photo, generate a high-converting Shopify listing optimized for SEO.
+
+Selling Price: ₹${price}
+MRP: ₹${mrp}
+
+Return a JSON object with exactly these keys:
+{
+  "name": "Catchy Product Title",
+  "handle": "seo-friendly-product-handle",
+  "description": "HTML description with <b> and <ul> tags",
+  "tags": ["array of 8 seo-friendly tags"],
+  "seo_title": "SEO optimized title",
+  "seo_description": "SEO optimized meta description",
+  "image_alt_text": "Descriptive SEO-friendly alt text for product image",
+  "product_type": "Jewelry",
+  "weight_grams": 150
+}
+
+Rules:
+- Handle must be lowercase with hyphens only.
+- Alt text should clearly describe the product for Google Images SEO.
+- Description should be conversion focused.
+- Return only valid JSON with no markdown.`;
 
     const firstImageUrl = imageUrls?.[0];
 
