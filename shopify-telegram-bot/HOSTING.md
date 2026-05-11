@@ -9,11 +9,12 @@ Set these in the host’s dashboard (never commit `.env`):
 | Variable | Required |
 |----------|----------|
 | `TELEGRAM_BOT_TOKEN` | Yes |
-| `GEMINI_API_KEY` | Yes |
+| `XAI_API_KEY` | Yes |
 | `SHOPIFY_STORE` | Yes |
 | `SHOPIFY_ACCESS_TOKEN` *or* `SHOPIFY_CLIENT_ID` + `SHOPIFY_CLIENT_SECRET` | Yes (one path) |
-| `GEMINI_MODEL` | No |
 | `PORT` | Auto-set on many hosts; enables `/` and `/health` when present |
+
+The Grok model is fixed in code as **`grok-4.3`** (xAI chat completions only).
 
 Optional Supabase (see bottom): `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`.
 

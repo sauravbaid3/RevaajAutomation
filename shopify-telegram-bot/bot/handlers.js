@@ -1,6 +1,6 @@
 const { getSession, resetSession } = require("./sessions");
 const { confirmKeyboard, shopMenuKeyboard } = require("./keyboards");
-const { generateProductFields } = require("../services/gemini");
+const { generateProductFields } = require("../services/xai");
 const {
   createProduct,
   getShop,

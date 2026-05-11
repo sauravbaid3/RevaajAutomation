@@ -1,12 +1,13 @@
 /**
- * Smoke-test Telegram, Gemini, and Shopify credentials from .env
+ * Smoke-test Telegram, xAI (Grok), and Shopify credentials from .env
  * Does not print secrets — only OK / FAIL and safe error hints.
  */
 require("dotenv").config({ path: require("path").join(__dirname, "..", ".env") });
 
 const axios = require("axios");
-const { GoogleGenerativeAI } = require("@google/generative-ai");
 const { getAccessToken } = require("../services/shopify.js");
+
+const XAI_MODEL = "grok-4.3";
 
 function shopHost() {
   const raw = (process.env.SHOPIFY_STORE || "").trim().replace(/^https?:\/\//i, "");
@@ -31,54 +32,58 @@ async function testTelegram() {
   return { ok: true, detail: u ? `@${u}` : "bot ok" };
 }
 
-const GEMINI_TRY_MODELS = [
-  process.env.GEMINI_MODEL?.trim(),
-  "gemini-3.1-flash-lite",
-  "gemini-3.1-flash-lite-preview",
-  "gemini-2.5-flash-lite",
-  "gemini-2.0-flash-lite",
-  "gemini-2.5-flash",
-  "gemini-2.0-flash",
-  "gemini-1.5-flash-8b",
-].filter(Boolean);
+async function testXai() {
+  const key = process.env.XAI_API_KEY?.trim();
+  if (!key) return { ok: false, detail: "XAI_API_KEY is empty" };
 
-async function testGemini() {
-  const key = process.env.GEMINI_API_KEY?.trim();
-  if (!key) return { ok: false, detail: "GEMINI_API_KEY is empty" };
-  const genAI = new GoogleGenerativeAI(key);
-  const tried = [];
-  let lastErr = "";
-
-  for (const modelName of [...new Set(GEMINI_TRY_MODELS)]) {
-    tried.push(modelName);
-    try {
-      const model = genAI.getGenerativeModel({
-        model: modelName,
-        generationConfig: { responseMimeType: "application/json" },
-      });
-      const result = await model.generateContent(
-        'Reply with JSON only: {"ping":"pong"}'
-      );
-      const text = result.response.text();
-      const parsed = JSON.parse(text);
-      if (parsed?.ping !== "pong") {
-        lastErr = `${modelName}: unexpected JSON`;
-        continue;
+  try {
+    const res = await axios.post(
+      "https://api.x.ai/v1/chat/completions",
+      {
+        model: XAI_MODEL,
+        messages: [
+          {
+            role: "user",
+            content: 'Reply with JSON only, no other text: {"ping":"pong"}',
+          },
+        ],
+        max_completion_tokens: 100,
+        temperature: 0,
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${key}`,
+          "Content-Type": "application/json",
+        },
+        timeout: 60000,
+        validateStatus: () => true,
       }
-      const hint =
-        modelName !== GEMINI_TRY_MODELS[0]
-          ? ` (set GEMINI_MODEL=${modelName} in .env to skip probing)`
-          : "";
-      return { ok: true, detail: `${modelName} OK${hint}` };
-    } catch (e) {
-      lastErr = `${modelName}: ${(e.message || String(e)).split("\n")[0]}`;
-    }
-  }
+    );
 
-  return {
-    ok: false,
-    detail: `all models failed (tried: ${tried.join(", ")}). Last: ${lastErr}`,
-  };
+    if (res.status !== 200) {
+      const err =
+        res.data?.error?.message ||
+        res.data?.message ||
+        res.statusText ||
+        `HTTP ${res.status}`;
+      return {
+        ok: false,
+        detail: `${XAI_MODEL}: ${String(err).split("\n")[0]}`,
+      };
+    }
+
+    const text = String(res.data?.choices?.[0]?.message?.content || "")
+      .replace(/```json|```/g, "")
+      .trim();
+    const parsed = JSON.parse(text);
+    if (parsed?.ping !== "pong") {
+      return { ok: false, detail: `${XAI_MODEL}: unexpected JSON` };
+    }
+    return { ok: true, detail: `${XAI_MODEL} OK (xAI)` };
+  } catch (e) {
+    const msg = e.response?.data?.error?.message || e.message || String(e);
+    return { ok: false, detail: `${XAI_MODEL}: ${String(msg).split("\n")[0]}` };
+  }
 }
 
 async function testShopify() {
@@ -141,12 +146,12 @@ async function main() {
   }
 
   try {
-    const r = await testGemini();
-    line("Gemini (generateContent)", r);
+    const r = await testXai();
+    line("xAI (chat/completions)", r);
     results.push(r);
   } catch (e) {
     const r = { ok: false, detail: e.message || String(e) };
-    line("Gemini (generateContent)", r);
+    line("xAI (chat/completions)", r);
     results.push(r);
   }
 
