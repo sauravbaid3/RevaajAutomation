@@ -54,7 +54,7 @@ async function generateProductFields(imageUrls, price, mrp) {
     }
 
     const prompt = `You are an expert product cataloger for "Revaaj", a premium Indian brand.
-      Based on these photos, generate a high-converting Shopify listing.
+      Based on this product photo, generate a high-converting Shopify listing.
       Selling Price: ₹${price}
       MRP: ₹${mrp}
 
@@ -70,23 +70,20 @@ async function generateProductFields(imageUrls, price, mrp) {
       }
       Return only valid JSON with no markdown.`;
 
-    const normalizedImageUrls = await Promise.all(
-      (imageUrls || []).map(async (url) => {
-        try {
-          return await imageUrlToDataUrl(url);
-        } catch (error) {
-          console.error("Failed to normalize image for xAI:", error.response?.data || error.message);
-          throw new Error("Failed to prepare one or more images for AI analysis.");
-        }
-      })
-    );
+    const firstImageUrl = imageUrls?.[0];
+
+    if (!firstImageUrl) {
+      throw new Error("No product image provided.");
+    }
+
+    const normalizedImageUrl = await imageUrlToDataUrl(firstImageUrl);
 
     const content = [
       { type: "text", text: prompt },
-      ...normalizedImageUrls.map((url) => ({
+      {
         type: "image_url",
-        image_url: { url },
-      })),
+        image_url: { url: normalizedImageUrl },
+      },
     ];
 
     const response = await axios.post(
